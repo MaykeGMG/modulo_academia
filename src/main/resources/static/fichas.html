@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Fichas de Treino</title>
+    <link rel="stylesheet" href="css/fichas.css">
+</head>
+<body>
+
+<div class="container">
+    <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+        <a href="index.html" class="btn btn-voltar">⬅️ Voltar para o Painel</a>
+    </div>
+
+    <header>
+        <h1>Fichas de Treino</h1>
+        <p>Crie fichas, adicione exercícios e gerencie os treinos</p>
+    </header>
+
+    <div class="menu-interno">
+        <button class="btn" onclick="mostrarSecao('secao-listar')">📋 Mostrar Fichas</button>
+        <button class="btn" onclick="mostrarSecao('secao-criar')" style="background-color: #10b981;">➕ Nova Ficha</button>
+        <button class="btn" onclick="mostrarSecao('secao-vincular')" style="background-color: #f59e0b;">🏋️ Adicionar Exercício</button>
+        <button class="btn" onclick="mostrarSecao('secao-deletar')" style="background-color: #ef4444;">❌ Deletar Ficha</button>
+    </div>
+
+    <div id="secao-listar" class="box">
+        <h2>Fichas de Treino Ativas</h2>
+        <div id="conteudo-fichas"></div>
+    </div>
+
+    <div id="secao-criar" class="box" style="display: none;">
+        <h2>Criar Nova Ficha</h2>
+        <form id="form-ficha">
+            <div class="form-group">
+                <label for="nome-ficha">Nome da Ficha:</label>
+                <input type="text" id="nome-ficha" required placeholder="Ex: Treino A - Peito e Tríceps">
+            </div>
+            <button type="button" class="btn" onclick="executarCriarFicha()" style="width: 100%; background-color: #10b981;">Salvar Ficha</button>
+        </form>
+    </div>
+
+    <div id="secao-vincular" class="box" style="display: none; max-width: 100%;">
+        <h2>Vincular Exercício à Ficha</h2>
+
+        <div class="painel-duplo">
+            <div class="coluna-tabela">
+                <h3>📌 Fichas Disponíveis</h3>
+                <div id="mini-lista-fichas" class="scroll-tabela"></div>
+            </div>
+            <div class="coluna-tabela">
+                <h3>💪 Exercícios Disponíveis</h3>
+                <div id="mini-lista-exercicios" class="scroll-tabela"></div>
+            </div>
+        </div>
+
+        <div class="form-vinculo" style="margin-top: 30px; border-top: 2px solid #e2e8f0; padding-top: 20px;">
+            <h3>Confirmar Associação</h3>
+            <div style="display: flex; gap: 15px; margin-top: 15px;">
+                <div class="form-group" style="flex: 1;">
+                    <label for="vinculo-ficha-id">ID da Ficha:</label>
+                    <input type="number" id="vinculo-ficha-id" placeholder="Ex: 1">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label for="vinculo-exercicio-id">ID do Exercício:</label>
+                    <input type="number" id="vinculo-exercicio-id" placeholder="Ex: 3">
+                </div>
+            </div>
+            <button type="button" class="btn" onclick="executarVinculo()" style="width: 100%; background-color: #f59e0b; margin-top: 10px;">Adicionar Exercício na Ficha</button>
+        </div>
+    </div>
+
+    <div id="secao-deletar" class="box" style="display: none;">
+        <h2>Remover Ficha</h2>
+        <div class="form-group">
+            <label for="delete-id">Informe o ID da Ficha:</label>
+            <input type="number" id="delete-id" placeholder="Ex: 1">
+        </div>
+        <button type="button" class="btn" onclick="executarExclusao()" style="width: 100%; background-color: #ef4444;">Confirmar Exclusão</button>
+    </div>
+
+</div>
+
+<script>
+    const API_FICHAS = '/api/fichas';
+    const API_EXERCICIOS = '/api/exercicios';
+
+    function mostrarSecao(secaoId) {
+        document.getElementById('secao-listar').style.display = 'none';
+        document.getElementById('secao-criar').style.display = 'none';
+        document.getElementById('secao-vincular').style.display = 'none';
+        document.getElementById('secao-deletar').style.display = 'none';
+
+        document.getElementById(secaoId).style.display = 'block';
+
+        if (secaoId === 'secao-listar') carregarFichas();
+        if (secaoId === 'secao-vincular') carregarDadosVinculo();
+    }
+
+    // GET - Carrega a listagem principal de fichas e seus exercícios internos
+    function carregarFichas() {
+        fetch(API_FICHAS)
+            .then(res => res.json())
+            .then(fichas => {
+                const container = document.getElementById('conteudo-fichas');
+                if (fichas.length === 0) {
+                    container.innerHTML = '<p style="color: #64748b;">Nenhuma ficha cadastrada ainda.</p>';
+                    return;
+                }
+
+                let html = '';
+                fichas.forEach(ficha => {
+                    html += `
+                        <div class="card-ficha">
+                            <div class="card-ficha-header">
+                                <span><strong>ID: ${ficha.id}</strong> - ${ficha.nome}</span>
+                            </div>
+                            <div class="card-ficha-body">
+                                <h4>Exercícios na Ficha:</h4>
+                    `;
+
+                    if (!ficha.exercicios || ficha.exercicios.length === 0) {
+                        html += `<p style="color: #94a3b8; font-style: italic;">Nenhum exercício associado.</p>`;
+                    } else {
+                        html += `<ul>`;
+                        ficha.exercicios.forEach(ex => {
+                            let detalhes = ex.duracao !== undefined
+                                ? `⏱️ Duração: ${ex.duracao} min | 🔥 ${ex.caloriasPorMinuto} kcal`
+                                : `🏋️ Carga: ${ex.carga}kg | 🔄 ${ex.series}x${ex.repeticoes} (Pausa: ${ex.tempoDescanso}s)`;
+                            html += `<li><strong>${ex.nome}</strong> <small style="color:#64748b;">(${detalhes})</small></li>`;
+                        });
+                        html += `</ul>`;
+                    }
+
+                    html += `</div></div>`;
+                });
+                container.innerHTML = html;
+            });
+    }
+
+    // POST - Criar ficha passando 'nome' via Query Parameter para o @RequestParam
+    function executarCriarFicha() {
+        const nome = document.getElementById('nome-ficha').value;
+        if (!nome) { alert('Insira o nome da ficha!'); return; }
+
+        fetch(`${API_FICHAS}?nome=${encodeURIComponent(nome)}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    alert('Ficha criada com sucesso!');
+                    document.getElementById('form-ficha').reset();
+                    mostrarSecao('secao-listar');
+                } else {
+                    alert('Erro ao criar ficha.');
+                }
+            });
+    }
+
+    // GET - Carrega a listagem principal de fichas e seus exercícios internos + Totais Calculados
+    function carregarFichas() {
+        fetch(API_FICHAS)
+            .then(res => res.json())
+            .then(fichas => {
+                const container = document.getElementById('conteudo-fichas');
+                if (fichas.length === 0) {
+                    container.innerHTML = '<p style="color: #64748b;">Nenhuma ficha cadastrada ainda.</p>';
+                    return;
+                }
+
+                let html = '';
+                fichas.forEach(ficha => {
+                    // Captura os valores gerados automaticamente pelos getters do Java (Ficha.java)
+                    // Usa .toFixed(0) ou .toFixed(1) para não encher a tela de casas decimais feias
+                    let tempoTreino = ficha.tempoTotal !== undefined ? ficha.tempoTotal.toFixed(0) : 0;
+                    let caloriasTreino = ficha.caloriasTotais !== undefined ? ficha.caloriasTotais.toFixed(0) : 0;
+
+                    html += `
+                        <div class="card-ficha">
+                            <div class="card-ficha-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                                <span><strong>ID: ${ficha.id}</strong> - ${ficha.nome}</span>
+                                <div class="ficha-totais" style="font-size: 0.85rem; background: #e2e8f0; padding: 4px 10px; border-radius: 20px; color: #334155;">
+                                    ⏱️ <strong>${tempoTreino} min</strong> totais | 🔥 <strong>${caloriasTreino} kcal</strong> estimadas
+                                </div>
+                            </div>
+                            <div class="card-ficha-body">
+                                <h4>Exercícios na Ficha:</h4>
+                    `;
+
+                    if (!ficha.exercicios || ficha.exercicios.length === 0) {
+                        html += `<p style="color: #94a3b8; font-style: italic;">Nenhum exercício associado.</p>`;
+                    } else {
+                        html += `<ul>`;
+                        ficha.exercicios.forEach(ex => {
+                            let detalhes = ex.duracao !== undefined
+                                ? `⏱️ Duração: ${ex.duracao} min | 🔥 ${ex.caloriasPorMinuto} kcal/min`
+                                : `🏋️ Carga: ${ex.carga}kg | 🔄 ${ex.series}x${ex.repeticoes} (Pausa: ${ex.tempoDescanso}s)`;
+                            html += `<li style="margin-bottom: 6px;"><strong>${ex.nome}</strong> <small style="color:#64748b;">(${detalhes})</small></li>`;
+                        });
+                        html += `</ul>`;
+                    }
+
+                    html += `</div></div>`;
+                });
+                container.innerHTML = html;
+            });
+    }
+
+    // POST - Vincula exercício à ficha (/fichas/{fichaId}/add/{exercicioId})
+    function executarVinculo() {
+        const fichaId = document.getElementById('vinculo-ficha-id').value;
+        const exercicioId = document.getElementById('vinculo-exercicio-id').value;
+
+        if (!fichaId || !exercicioId) { alert('Selecione ou informe ambos os IDs!'); return; }
+
+        fetch(`/api/fichas/${fichaId}/add/${exercicioId}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    alert('Exercício adicionado à ficha com sucesso!');
+                    document.getElementById('vinculo-ficha-id').value = '';
+                    document.getElementById('vinculo-exercicio-id').value = '';
+                    mostrarSecao('secao-listar');
+                } else {
+                    alert('Erro ao vincular. Verifique se os IDs existem.');
+                }
+            });
+    }
+
+    // DELETE - Deleta a ficha
+    function executarExclusao() {
+        const id = document.getElementById('delete-id').value;
+        if (!id) { alert('Informe o ID!'); return; }
+
+        fetch(`${API_FICHAS}/${id}`, { method: 'DELETE' })
+            .then(res => {
+                if (res.ok) {
+                    alert('Ficha removida com sucesso!');
+                    document.getElementById('delete-id').value = '';
+                    mostrarSecao('secao-listar');
+                } else {
+                    alert('Erro ao deletar ficha.');
+                }
+            });
+    }
+
+    // Inicialização
+    carregarFichas();
+</script>
+</body>
+</html>

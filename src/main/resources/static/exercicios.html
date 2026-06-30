@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Exercícios</title>
+    <link rel="stylesheet" href="css/exercicios.css">
+</head>
+<body>
+
+<div class="container" style="display: flex; flex-direction: column; align-items: center;">
+    <a href="index.html" class="btn btn-voltar">⬅️ Voltar para o Painel</a>
+
+    <header>
+        <h1>Módulo de Exercícios</h1>
+        <p>Cadastre, liste ou remova exercícios do sistema</p>
+    </header>
+
+    <div class="menu-interno">
+        <button class="btn" onclick="mostrarSecao('secao-listar')">📋 Mostrar Cadastrados</button>
+        <button class="btn" onclick="mostrarSecao('secao-cadastrar')" style="background-color: #10b981;">➕ Novo Exercício</button>
+        <button class="btn" onclick="mostrarSecao('secao-deletar')" style="background-color: #ef4444;">❌ Deletar Exercício</button>
+    </div>
+
+    <div id="secao-listar" class="box" style="max-width: 800px;">
+        <h2>Exercícios Cadastrados</h2>
+        <div id="conteudo-lista">
+        </div>
+    </div>
+
+    <div id="secao-cadastrar" class="box" style="display: none;">
+        <h2>Cadastrar Novo Exercício</h2>
+        <form id="form-exercicio">
+            <div class="form-group">
+                <label for="nome">Nome do Exercício:</label>
+                <input type="text" id="nome" required placeholder="Ex: Corrida na Esteira, Supino...">
+            </div>
+
+            <div class="form-group">
+                <label for="tipo">Tipo de Exercício:</label>
+                <select id="tipo" onchange="alternarCamposEspecificos()" required>
+                    <option value="1">Cardio (Foco em tempo/calorias)</option>
+                    <option value="2">Força (Foco em carga/repetições)</option>
+                </select>
+            </div>
+
+            <div id="campo-cardio" class="form-group">
+                <label for="duracao">Duração Estimada (minutos):</label>
+                <input type="number" id="duracao" placeholder="Ex: 30" style="margin-bottom: 10px;">
+                <label for="calorias">Calorias Estimadas (kcal):</label>
+                <input type="number" id="calorias" placeholder="Ex: 250">
+            </div>
+
+            <div id="campos-forca" class="form-group" style="display: none;">
+                <label for="carga">Carga Utilizada (kg):</label>
+                <input type="number" id="carga" placeholder="Ex: 40" style="margin-bottom: 10px;">
+                <label for="series">Número de Séries:</label>
+                <input type="number" id="series" placeholder="Ex: 4" style="margin-bottom: 10px;">
+                <label for="reps">Repetições por Série:</label>
+                <input type="number" id="reps" placeholder="Ex: 12" style="margin-bottom: 10px;">
+                <label for="descanso">Tempo de Descanso (segundos):</label>
+                <input type="number" id="descanso" placeholder="Ex: 60">
+            </div>
+
+            <button type="button" class="btn" onclick="executarCadastro()" style="width: 100%; margin-top: 10px; background-color: #10b981;">Salvar Exercício</button>
+        </form>
+    </div>
+
+    <div id="secao-deletar" class="box" style="display: none;">
+        <h2>Remover Exercício</h2>
+        <div class="form-group">
+            <label for="delete-id">Informe o ID do Exercício:</label>
+            <input type="number" id="delete-id" placeholder="Ex: 1">
+        </div>
+        <button type="button" class="btn" onclick="executarExclusao()" style="width: 100%; background-color: #ef4444;">Confirmar Exclusão</button>
+    </div>
+
+</div>
+
+<script>
+    // URL base contendo o prefixo /api configurado no seu controller
+    const API_URL = '/api/exercicios';
+
+    function mostrarSecao(secaoId) {
+        document.getElementById('secao-listar').style.display = 'none';
+        document.getElementById('secao-cadastrar').style.display = 'none';
+        document.getElementById('secao-deletar').style.display = 'none';
+
+        document.getElementById(secaoId).style.display = 'block';
+
+        if (secaoId === 'secao-listar') {
+            carregarExercicios();
+        }
+    }
+
+    function alternarCamposEspecificos() {
+        const tipo = document.getElementById('tipo').value;
+        if (tipo === "1") {
+            document.getElementById('campo-cardio').style.display = 'flex';
+            document.getElementById('campos-forca').style.display = 'none';
+        } else {
+            document.getElementById('campo-cardio').style.display = 'none';
+            document.getElementById('campos-forca').style.display = 'flex';
+        }
+    }
+
+    // GET - Busca a lista mapeando as propriedades reais das subclasses Java
+    function carregarExercicios() {
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(dados => {
+                if (dados.length === 0) {
+                    document.getElementById('conteudo-lista').innerHTML = '<p style="color: #64748b;">Nenhum exercício cadastrado ainda.</p>';
+                    return;
+                }
+
+                let tabelaHTML = `
+                    <table class="tabela-dados">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Detalhes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                dados.forEach(ex => {
+                    let detalhe = "";
+                    let tipoTexto = "";
+
+                    // Identifica se é Cardio ou Força pelos atributos
+                    if (ex.duracao !== undefined) {
+                        tipoTexto = 'Cardio';
+                        detalhe = `Duração: ${ex.duracao} min | Calorias: ${ex.caloriasPorMinuto} kcal`;
+                    } else {
+                        tipoTexto = 'Força';
+                        detalhe = `Carga: ${ex.carga}kg | Séries: ${ex.series}x${ex.repeticoes} | Descanso: ${ex.tempoDescanso}s`;
+                    }
+
+                    tabelaHTML += `
+                        <tr>
+                            <td><strong>${ex.id}</strong></td>
+                            <td>${ex.nome}</td>
+                            <td>${tipoTexto}</td>
+                            <td>${detalhe}</td>
+                        </tr>
+                    `;
+                });
+
+                tabelaHTML += '</tbody></table>';
+                document.getElementById('conteudo-lista').innerHTML = tabelaHTML;
+            })
+            .catch(err => {
+                document.getElementById('conteudo-lista').innerHTML = '<p style="color: #ef4444;">Erro ao carregar dados do servidor.</p>';
+            });
+    }
+
+    // POST - Monta a requisição usando URLSearchParams para casar com o @RequestParam do Java
+    function executarCadastro() {
+        const nome = document.getElementById('nome').value;
+        const tipo = parseInt(document.getElementById('tipo').value);
+
+        if(!nome) { alert('Por favor, insira o nome.'); return; }
+
+        let urlFinal = '';
+        let params = new URLSearchParams();
+        params.append('nome', nome);
+
+        if (tipo === 1) {
+            urlFinal = "/api/exercicios/cardio";
+            const duracao = document.getElementById('duracao').value || 0;
+            const calorias = document.getElementById('calorias').value || 0;
+            params.append('duracao', duracao);
+            params.append('calorias', calorias);
+        } else if (tipo === 2) {
+            urlFinal = "/api/exercicios/forca";
+            const carga = document.getElementById('carga').value || 0;
+            const series = document.getElementById('series').value || 0;
+            const reps = document.getElementById('reps').value || 0;
+            const descanso = document.getElementById('descanso').value || 0;
+
+            params.append('carga', carga);
+            params.append('series', series);
+            params.append('reps', reps);
+            params.append('descanso', descanso);
+        }
+
+        // Enviando os parâmetros anexados na URL (?nome=...&duracao=...) como o @RequestParam quer
+        fetch(`${urlFinal}?${params.toString()}`, {
+            method: 'POST'
+        })
+        .then(res => {
+            if(res.ok) {
+                alert('Exercício cadastrado com sucesso!');
+                document.getElementById('form-exercicio').reset();
+                alternarCamposEspecificos();
+                mostrarSecao('secao-listar');
+            } else {
+                alert('Erro ao cadastrar exercício. Verifique o console da aplicação Java.');
+            }
+        });
+    }
+
+    // DELETE - Remove usando o ID na URL dinamicamente
+    function executarExclusao() {
+        const id = document.getElementById('delete-id').value;
+        if(!id) { alert('Por favor, informe o ID.'); return; }
+
+        fetch(`${API_URL}/${id}`, {
+            method: 'DELETE'
+        })
+        .then(res => {
+            if(res.ok) {
+                alert(`Exercício ID ${id} removido com sucesso!`);
+                document.getElementById('delete-id').value = '';
+                mostrarSecao('secao-listar');
+            } else {
+                alert('Erro ao deletar. Verifique se o ID realmente existe.');
+            }
+        });
+    }
+
+    // Inicializa carregando a lista
+    carregarExercicios();
+</script>
+</body>
+</html>
