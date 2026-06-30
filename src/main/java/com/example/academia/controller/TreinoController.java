@@ -43,6 +43,18 @@ public class TreinoController {
         return treinoService.concluirTreino(fichaId);
     }
 
+    // Registrar evolução física do usuário
+    @PostMapping("/progresso")
+    public ProgressoCorporal registrarProgresso(
+            @RequestParam int idade, @RequestParam double altura, @RequestParam double peso,
+            @RequestParam String genero, @RequestParam double pescoco, @RequestParam double cintura,
+            @RequestParam double quadril, @RequestParam double biceps, @RequestParam double coxa,
+            @RequestParam double panturrilha, @RequestParam double ombro, @RequestParam double busto) {
+
+        ProgressoCorporal novo = new ProgressoCorporal(null, idade, altura, peso, genero, pescoco, cintura, quadril, biceps, coxa, panturrilha, ombro, busto);
+        return treinoService.salvarProgresso(novo);
+    }
+
     //ver lista de exercicios
     @GetMapping("/exercicios")
     public List<Exercicio> listarExercicios() {
@@ -59,6 +71,12 @@ public class TreinoController {
     @GetMapping("/historico")
     public List<RegistroTreino> listarHistorico() {
         return treinoService.obterHistorico();
+    }
+
+    // Buscar histórico de evolução corporal
+    @GetMapping("/progresso")
+    public List<ProgressoCorporal> listarEvolucao() {
+        return treinoService.obterHistoricoProgresso();
     }
 
     // Deletar um exercício
@@ -80,6 +98,17 @@ public class TreinoController {
             return "Exercicio deletado com sucesso!";
         } else {
             return "Erro: Ficha com o ID " + id + " nao encontrado.";
+        }
+    }
+
+    // Deletar progresso corporal
+    @DeleteMapping("/progresso/{id}")
+    public String deletarProgresso(@PathVariable long id) {
+        boolean deletado = treinoService.deletarProgresso(id);
+        if (deletado) {
+            return "Registro de progresso deletado com sucesso!";
+        } else {
+            return "Erro: Registro com o ID " + id + " não encontrado.";
         }
     }
 }
