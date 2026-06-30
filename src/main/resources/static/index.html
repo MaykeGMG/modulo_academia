@@ -5,8 +5,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel - API Academia</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Pequenos ajustes para acomodar a nova seção de conclusão sem quebrar o layout */
+        .secao-conclusao {
+            margin-top: 30px;
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+        }
+        .concluir-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .select-custom {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: #f8fafc;
+        }
+        .btn-concluir {
+            background-color: #ea580c !important; /* Laranja de alta energia */
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: opacity 0.2s;
+        }
+        .btn-concluir:hover {
+            opacity: 0.9;
+        }
+
+        /* Estilização para o Sistema de Toasts Profissional */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background-color: #334155;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 250px;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.7s forwards;
+        }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(20px); }
+        }
+    </style>
 </head>
 <body>
+
+<div id="toast-container" class="toast-container"></div>
 
 <header>
     <h1>Sistema de Gerenciamento - Academia</h1>
@@ -39,7 +120,90 @@
         <a href="estatisticas.html" class="btn">Ver Estatísticas</a>
     </div>
 
+    <section class="secao-conclusao" style="grid-column: 1 / -1; width: 100%;">
+        <h2>🏁 Registrar Treino Concluído</h2>
+        <p style="color: #64748b; font-size: 0.95rem;">Terminou o treino de hoje? Selecione qual a ficha executada abaixo para calcular o tempo total e computar as calorias queimadas diretamente no seu histórico analítico.</p>
+
+        <div class="concluir-container">
+            <select id="select-ficha-hoje" class="select-custom">
+                <option value="">🔄 Carregando suas fichas...</option>
+            </select>
+            <button type="button" class="btn-concluir" onclick="enviarConclusaoTreino()">Concluir Treino de Hoje! 🔥</button>
+        </div>
+    </section>
+
 </main>
+
+<script>
+    // Executa assim que a página inicial carrega completamente
+    document.addEventListener("DOMContentLoaded", function() {
+        carregarFichasNoDropdown();
+    });
+
+    // Função auxiliar para exibir notificações customizadas na tela
+    function mostrarToast(mensagem, tipo = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+
+        let icone = '🔔';
+        if (tipo === 'success') icone = '✅';
+        if (tipo === 'error') icone = '❌';
+        if (tipo === 'info') icone = 'ℹ️';
+
+        toast.innerHTML = `<span>${icone}</span> <span>${mensagem}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3200);
+    }
+
+    // GET - Busca as fichas cadastradas no Java para alimentar o select dinamicamente
+    function carregarFichasNoDropdown() {
+        fetch('/api/fichas')
+            .then(res => res.json())
+            .then(fichas => {
+                const select = document.getElementById('select-ficha-hoje');
+
+                if (fichas.length === 0) {
+                    select.innerHTML = '<option value="">Nenhuma ficha encontrada no sistema</option>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">-- Escolha qual treino você realizou hoje --</option>' +
+                    fichas.map(f => `<option value="${f.id}">Ficha #${f.id} - ${f.nome}</option>`).join('');
+            })
+            .catch(err => {
+                console.error("Erro ao conectar com a API de fichas:", err);
+                document.getElementById('select-ficha-hoje').innerHTML = '<option value="">Erro ao carregar as fichas</option>';
+            });
+    }
+
+    // POST - Aciona o endpoint do Controller para salvar o treino no arquivo de histórico
+    function enviarConclusaoTreino() {
+        const idFicha = document.getElementById('select-ficha-hoje').value;
+
+        if (!idFicha) {
+            mostrarToast('Por favor, selecione um treino válido antes de prosseguir!', 'error');
+            return;
+        }
+
+        fetch(`/api/fichas/${idFicha}/concluir`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    mostrarToast('Parabéns! Treino finalizado com sucesso e computado no seu histórico.', 'success');
+                    document.getElementById('select-ficha-hoje').value = '';
+                } else {
+                    mostrarToast('Ocorreu um erro no servidor ao tentar processar o fechamento deste treino.', 'error');
+                }
+            })
+            .catch(err => {
+                console.error("Erro ao efetuar a requisição de conclusão:", err);
+                mostrarToast('Erro de comunicação com o servidor.', 'error');
+            });
+    }
+</script>
 
 </body>
 </html>

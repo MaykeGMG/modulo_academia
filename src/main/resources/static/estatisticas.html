@@ -1,10 +1,391 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estatísticas & Evolução</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="css/estatisticas.css">
+    <style>
+        /* Pequeno ajuste extra para o formulário de medidas ficar bonito */
+        .form-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .campo-grupo { display: flex; flex-direction: column; gap: 5px; }
+        .campo-grupo label { font-size: 0.9rem; font-weight: 600; color: #475569; }
+        .campo-grupo input, .campo-grupo select { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; }
+        .btn-salvar { background-color: #10b981; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+        .btn-salvar:hover { background-color: #059669; }
+
+        /* Estilização para o Sistema de Toasts Profissional */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background-color: #334155;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 250px;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.7s forwards;
+        }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(20px); }
+        }
+    </style>
 </head>
 <body>
 
+<!-- Container onde as notificações vão aparecer -->
+<div id="toast-container" class="toast-container"></div>
+
+<div class="container">
+    <div class="navigation-wrapper">
+        <a href="index.html" class="btn-dashboard">⬅️ Painel Principal</a>
+    </div>
+
+    <header class="estatisticas-header">
+        <h1>📊 Central de Evolução & Histórico</h1>
+        <p>Acompanhe seus treinos concluídos e a transformação das suas medidas corporais</p>
+    </header>
+
+    <nav class="abas-navegacao">
+        <button class="aba-btn ativa" onclick="mudarAba('aba-treinos')">🏋️ Treinos Concluídos</button>
+        <button class="aba-btn" onclick="mudarAba('aba-graficos')">📈 Gráficos de Evolução</button>
+        <button class="aba-btn" onclick="mudarAba('aba-diario')">📅 Diário de Medidas</button>
+        <button class="aba-btn" onclick="mudarAba('aba-cadastrar-medidas')" style="color: #10b981;">➕ Registrar Medidas</button>
+    </nav>
+
+    <section id="aba-treinos" class="painel-estatistica">
+        <h2>Histórico Recente de Treinos</h2>
+        <div class="tabela-wrapper">
+            <table class="tabela-estatistica">
+                <thead>
+                <tr>
+                    <th>Data / Hora</th>
+                    <th>ID Ficha</th>
+                    <th>Nome do Treino</th>
+                    <th>Duração Estimada</th>
+                    <th>Calorias Queimadas</th>
+                </tr>
+                </thead>
+                <tbody id="lista-treinos-concluidos"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="aba-graficos" class="painel-estatistica" style="display: none;">
+        <h2>Análise de Composição Corporal</h2>
+        <div class="grade-graficos">
+            <div class="card-grafico">
+                <h3>Evolução de Peso vs Massa Magra (kg)</h3>
+                <canvas id="graficoPesoMassa"></canvas>
+            </div>
+            <div class="card-grafico">
+                <h3>Percentual de Gordura Corporal (%)</h3>
+                <canvas id="graficoGordura"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <section id="aba-diario" class="painel-estatistica" style="display: none;">
+        <h2>Histórico Individual por Data</h2>
+        <p class="sub-instrucao">Selecione uma data abaixo para inspecionar o histórico completo de medidas corporais.</p>
+        <div class="layout-diario">
+            <div id="timeline-datas" class="lista-datas-botoes"></div>
+            <div id="detalhe-medida-selecionada" class="painel-detalhe-vazio">
+                Selecione uma data na linha do tempo para carregar os dados analíticos.
+            </div>
+        </div>
+    </section>
+
+    <section id="aba-cadastrar-medidas" class="painel-estatistica" style="display: none;">
+        <h2>Registrar Nova Avaliação Física</h2>
+        <p class="sub-instrucao">Insira suas medidas atuais. O sistema calculará seu % de gordura e composição muscular automaticamente.</p>
+
+        <form id="form-progresso">
+            <div class="form-grade">
+                <div class="campo-grupo">
+                    <label for="m-idade">Idade (anos):</label>
+                    <input type="number" id="m-idade" required placeholder="Ex: 26">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-altura">Altura (cm):</label>
+                    <input type="number" id="m-altura" required placeholder="Ex: 175">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-peso">Peso Atual (kg):</label>
+                    <input type="number" step="0.1" id="m-peso" required placeholder="Ex: 78.5">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-genero">Gênero Biológico:</label>
+                    <select id="m-genero" required>
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                    </select>
+                </div>
+            </div>
+
+            <h3 style="font-size: 1.1rem; color: #475569; margin: 20px 0 10px 0; border-top: 1px solid #e2e8f0; padding-top: 15px;">Perímetros Corporais (Fita Métrica em cm)</h3>
+
+            <div class="form-grade">
+                <div class="campo-grupo">
+                    <label for="m-pescoco">Pescoço (*Obrigatório):</label>
+                    <input type="number" step="0.1" id="m-pescoco" required placeholder="Ex: 38">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-cintura">Cintura (*Obrigatório):</label>
+                    <input type="number" step="0.1" id="m-cintura" required placeholder="Ex: 84">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-quadril">Quadril (Feminino):</label>
+                    <input type="number" step="0.1" id="m-quadril" placeholder="Ex: 95" value="0">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-biceps">Bíceps:</label>
+                    <input type="number" step="0.1" id="m-biceps" required placeholder="Ex: 34">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-ombro">Ombro:</label>
+                    <input type="number" step="0.1" id="m-ombro" required placeholder="Ex: 110">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-busto">Busto / Peito:</label>
+                    <input type="number" step="0.1" id="m-busto" required placeholder="Ex: 98">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-coxa">Coxa:</label>
+                    <input type="number" step="0.1" id="m-coxa" required placeholder="Ex: 56">
+                </div>
+                <div class="campo-grupo">
+                    <label for="m-panturrilha">Panturrilha:</label>
+                    <input type="number" step="0.1" id="m-panturrilha" required placeholder="Ex: 37">
+                </div>
+            </div>
+
+            <button type="button" class="btn-salvar" onclick="executarSalvarProgresso()" style="margin-top: 15px;">Salvar Evolução Corporal</button>
+        </form>
+    </section>
+</div>
+
+<script>
+    // Função auxiliar para exibir notificações customizadas na tela
+    function mostrarToast(mensagem, tipo = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+
+        let icone = '🔔';
+        if (tipo === 'success') icone = '✅';
+        if (tipo === 'error') icone = '❌';
+        if (tipo === 'info') icone = 'ℹ️';
+
+        toast.innerHTML = `<span>${icone}</span> <span>${mensagem}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3200);
+    }
+
+    function mudarAba(idAba) {
+        document.querySelectorAll('.painel-estatistica').forEach(p => p.style.display = 'none');
+        document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativa'));
+
+        document.getElementById(idAba).style.display = 'block';
+        event.currentTarget.classList.add('ativa');
+
+        if (idAba === 'aba-treinos') carregarHistoricoTreinos();
+        if (idAba === 'aba-graficos') inicializarGraficos();
+        if (idAba === 'aba-diario') carregarDiarioMedidas();
+    }
+
+    function carregarHistoricoTreinos() {
+        fetch('/api/historico')
+            .then(res => res.json())
+            .then(dados => {
+                const tbody = document.getElementById('lista-treinos-concluidos');
+                if (dados.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#94a3b8;">Nenhum treino concluído registrado ainda.</td></tr>`;
+                    return;
+                }
+                tbody.innerHTML = dados.map(t => `
+                    <tr>
+                        <td>${t.dataHora}</td>
+                        <td><strong>#${t.idFicha}</strong></td>
+                        <td>${t.nomeFicha}</td>
+                        <td>⏱️ ${t.tempoTotal.toFixed(0)} min</td>
+                        <td class="txt-energia">🔥 ${t.caloriasTotal.toFixed(0)} kcal</td>
+                    </tr>
+                `).join('');
+            });
+    }
+
+    let chartPeso = null;
+    let chartGordura = null;
+
+    function inicializarGraficos() {
+        fetch('/api/progresso')
+            .then(res => res.json())
+            .then(progresso => {
+                if (progresso.length === 0) return;
+                progresso.sort((a, b) => a.id - b.id);
+
+                const labels = progresso.map(p => p.dataRegistro);
+                const pesos = progresso.map(p => p.peso);
+                const massaMagra = progresso.map(p => p.massaMagra);
+                const gordura = progresso.map(p => p.percentualGordura);
+
+                if (chartPeso) chartPeso.destroy();
+                if (chartGordura) chartGordura.destroy();
+
+                const ctxPeso = document.getElementById('graficoPesoMassa').getContext('2d');
+                chartPeso = new Chart(ctxPeso, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            { label: 'Peso Total (kg)', data: pesos, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', tension: 0.3, fill: true },
+                            { label: 'Massa Magra (kg)', data: massaMagra, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.3 }
+                        ]
+                    },
+                    options: { responsive: true }
+                });
+
+                const ctxGordura = document.getElementById('graficoGordura').getContext('2d');
+                chartGordura = new Chart(ctxGordura, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: '% Gordura Corporal', data: gordura, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', tension: 0.3, fill: true }]
+                    },
+                    options: { responsive: true }
+                });
+            });
+    }
+
+    let registrosGlobaisProgresso = [];
+
+    function carregarDiarioMedidas() {
+        fetch('/api/progresso')
+            .then(res => res.json())
+            .then(dados => {
+                registrosGlobaisProgresso = dados;
+                const timeline = document.getElementById('timeline-datas');
+
+                if (dados.length === 0) {
+                    timeline.innerHTML = '<p style="color:#94a3b8;">Nenhum registro físico encontrado.</p>';
+                    document.getElementById('detalhe-medida-selecionada').innerHTML = "Nenhum dado disponível.";
+                    return;
+                }
+
+                const dadosInvertidos = [...dados].reverse();
+                timeline.innerHTML = dadosInvertidos.map(p => `
+                    <button class="btn-data-linha" onclick="renderizarDetalheMedida(${p.id})">
+                        📅 ${p.dataRegistro} <span style="font-size:0.8rem; color:#64748b;">(${p.peso} kg)</span>
+                    </button>
+                `).join('');
+
+                renderizarDetalheMedida(dadosInvertidos[0].id);
+            });
+    }
+
+    function renderizarDetalheMedida(id) {
+        document.querySelectorAll('.btn-data-linha').forEach(b => b.classList.remove('data-ativa'));
+        event?.currentTarget?.classList.add('data-ativa');
+
+        const p = registrosGlobaisProgresso.find(r => r.id === id);
+        if (!p) return;
+
+        const container = document.getElementById('detalhe-medida-selecionada');
+        container.className = "painel-detalhe-ativo";
+
+        container.innerHTML = `
+            <div class="detalhe-header">
+                <h3>Resumo de Medidas — ${p.dataRegistro}</h3>
+                <span>Registro #${p.id}</span>
+            </div>
+            <div class="grade-detalhes">
+                <div class="item-detalhe destaque-medida"><strong>⚖️ Peso:</strong> ${p.peso} kg</div>
+                <div class="item-detalhe destaque-medida"><strong>📏 Altura:</strong> ${p.altura} cm</div>
+                <div class="item-detalhe destaque-medida"><strong>⚡ % Gordura:</strong> ${p.percentualGordura.toFixed(1)}%</div>
+                <div class="item-detalhe destaque-medida"><strong>💪 M. Magra:</strong> ${p.massaMagra.toFixed(1)} kg</div>
+                <div class="item-detalhe"><strong>👤 Idade:</strong> ${p.idade} anos</div>
+                <div class="item-detalhe"><strong>🧬 Gênero:</strong> ${p.genero}</div>
+                <div class="item-detalhe"><strong>🧣 Pescoço:</strong> ${p.pescoco} cm</div>
+                <div class="item-detalhe"><strong>⭕ Cintura:</strong> ${p.cintura} cm</div>
+                <div class="item-detalhe"><strong>🍑 Quadril:</strong> ${p.quadril} cm</div>
+                <div class="item-detalhe"><strong>👕 Ombro:</strong> ${p.ombro} cm</div>
+                <div class="item-detalhe"><strong>👚 Busto:</strong> ${p.busto} cm</div>
+                <div class="item-detalhe"><strong>💪 Bíceps:</strong> ${p.biceps} cm</div>
+                <div class="item-detalhe"><strong>🍗 Coxa:</strong> ${p.coxa} cm</div>
+                <div class="item-detalhe"><strong>🦵 Panturrilha:</strong> ${p.panturrilha} cm</div>
+            </div>
+        `;
+    }
+
+    // POST - Envia as novas medidas capturadas para a rota /api/progresso via Query Params
+    function executarSalvarProgresso() {
+        const idade = document.getElementById('m-idade').value;
+        const altura = document.getElementById('m-altura').value;
+        const peso = document.getElementById('m-peso').value;
+        const genero = document.getElementById('m-genero').value;
+        const pescoco = document.getElementById('m-pescoco').value;
+        const cintura = document.getElementById('m-cintura').value;
+        const quadril = document.getElementById('m-quadril').value || 0;
+        const biceps = document.getElementById('m-biceps').value;
+        const coxa = document.getElementById('m-coxa').value;
+        const panturrilha = document.getElementById('m-panturrilha').value;
+        const ombro = document.getElementById('m-ombro').value;
+        const busto = document.getElementById('m-busto').value;
+
+        if (!idade || !altura || !peso || !pescoco || !cintura) {
+            mostrarToast('Por favor, preencha todos os campos obrigatórios!', 'error');
+            return;
+        }
+
+        const params = new URLSearchParams({
+            idade, altura, peso, genero, pescoco, cintura, quadril, biceps, coxa, panturrilha, ombro, busto
+        });
+
+        fetch(`/api/progresso?${params.toString()}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    mostrarToast('Avaliação física registrada com sucesso!', 'success');
+                    document.getElementById('form-progresso').reset();
+
+                    // Atualiza os dados locais silenciosamente sem tirar o usuário da aba atual
+                    inicializarGraficos();
+                    if (document.getElementById('aba-diario').style.display !== 'none') {
+                        carregarDiarioMedidas();
+                    }
+                } else {
+                    mostrarToast('Erro ao salvar os dados no servidor.', 'error');
+                }
+            });
+    }
+
+    carregarHistoricoTreinos();
+</script>
 </body>
 </html>

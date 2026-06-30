@@ -5,8 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Exercícios</title>
     <link rel="stylesheet" href="css/exercicios.css">
+    <style>
+        /* Estilização para o Sistema de Toasts Profissional */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background-color: #334155;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 250px;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.7s forwards;
+        }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(20px); }
+        }
+    </style>
 </head>
 <body>
+
+<div id="toast-container" class="toast-container"></div>
 
 <div class="container" style="display: flex; flex-direction: column; align-items: center;">
     <a href="index.html" class="btn btn-voltar">⬅️ Voltar para o Painel</a>
@@ -24,8 +65,7 @@
 
     <div id="secao-listar" class="box" style="max-width: 800px;">
         <h2>Exercícios Cadastrados</h2>
-        <div id="conteudo-lista">
-        </div>
+        <div id="conteudo-lista"></div>
     </div>
 
     <div id="secao-cadastrar" class="box" style="display: none;">
@@ -78,8 +118,26 @@
 </div>
 
 <script>
-    // URL base contendo o prefixo /api configurado no seu controller
     const API_URL = '/api/exercicios';
+
+    // Função auxiliar para exibir notificações customizadas na tela
+    function mostrarToast(mensagem, tipo = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+
+        let icone = '🔔';
+        if (tipo === 'success') icone = '✅';
+        if (tipo === 'error') icone = '❌';
+        if (tipo === 'info') icone = 'ℹ️';
+
+        toast.innerHTML = `<span>${icone}</span> <span>${mensagem}</span>`;
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 3200);
+    }
 
     function mostrarSecao(secaoId) {
         document.getElementById('secao-listar').style.display = 'none';
@@ -131,18 +189,18 @@
                     let detalhe = "";
                     let tipoTexto = "";
 
-                    // Identifica se é Cardio ou Força pelos atributos
+                    // CORREÇÃO DOS GETTERS: Ajustado de caloriasPorMinuto, repeticoes e tempoDescanso para bater com as propriedades reais do Java
                     if (ex.duracao !== undefined) {
-                        tipoTexto = 'Cardio';
-                        detalhe = `Duração: ${ex.duracao} min | Calorias: ${ex.caloriasPorMinuto} kcal`;
+                        tipoTexto = '🏃 Cardio';
+                        detalhe = `⏱️ Duração: ${ex.duracao} min | 🔥 Calorias: ${ex.caloriasPorMinuto} kcal`;
                     } else {
-                        tipoTexto = 'Força';
-                        detalhe = `Carga: ${ex.carga}kg | Séries: ${ex.series}x${ex.repeticoes} | Descanso: ${ex.tempoDescanso}s`;
+                        tipoTexto = '💪 Força';
+                        detalhe = `🏋️ Carga: ${ex.carga}kg | 🔄 Séries: ${ex.series}x${ex.repeticoes} | ⏱️ Descanso: ${ex.tempoDescanso}s`;
                     }
 
                     tabelaHTML += `
                         <tr>
-                            <td><strong>${ex.id}</strong></td>
+                            <td><strong>#${ex.id}</strong></td>
                             <td>${ex.nome}</td>
                             <td>${tipoTexto}</td>
                             <td>${detalhe}</td>
@@ -158,12 +216,12 @@
             });
     }
 
-    // POST - Monta a requisição usando URLSearchParams para casar com o @RequestParam do Java
+    // POST - Monta a requisição usando URLSearchParams
     function executarCadastro() {
         const nome = document.getElementById('nome').value;
         const tipo = parseInt(document.getElementById('tipo').value);
 
-        if(!nome) { alert('Por favor, insira o nome.'); return; }
+        if(!nome) { mostrarToast('Por favor, insira o nome.', 'error'); return; }
 
         let urlFinal = '';
         let params = new URLSearchParams();
@@ -188,18 +246,17 @@
             params.append('descanso', descanso);
         }
 
-        // Enviando os parâmetros anexados na URL (?nome=...&duracao=...) como o @RequestParam quer
         fetch(`${urlFinal}?${params.toString()}`, {
             method: 'POST'
         })
         .then(res => {
             if(res.ok) {
-                alert('Exercício cadastrado com sucesso!');
+                mostrarToast('Exercício cadastrado com sucesso!', 'success');
                 document.getElementById('form-exercicio').reset();
                 alternarCamposEspecificos();
-                mostrarSecao('secao-listar');
+                // PERMANECE NA ABA: Não dispara mais o mostrarSecao('secao-listar')
             } else {
-                alert('Erro ao cadastrar exercício. Verifique o console da aplicação Java.');
+                mostrarToast('Erro ao cadastrar exercício. Verifique os parâmetros.', 'error');
             }
         });
     }
@@ -207,23 +264,23 @@
     // DELETE - Remove usando o ID na URL dinamicamente
     function executarExclusao() {
         const id = document.getElementById('delete-id').value;
-        if(!id) { alert('Por favor, informe o ID.'); return; }
+        if(!id) { mostrarToast('Por favor, informe o ID.', 'error'); return; }
 
         fetch(`${API_URL}/${id}`, {
             method: 'DELETE'
         })
         .then(res => {
             if(res.ok) {
-                alert(`Exercício ID ${id} removido com sucesso!`);
+                mostrarToast(`Exercício ID #${id} removido com sucesso!`, 'success');
                 document.getElementById('delete-id').value = '';
-                mostrarSecao('secao-listar');
+                // PERMANECE NA ABA: Não dispara mais o mostrarSecao('secao-listar')
             } else {
-                alert('Erro ao deletar. Verifique se o ID realmente existe.');
+                mostrarToast('Erro ao deletar. Verifique se o ID realmente existe.', 'error');
             }
         });
     }
 
-    // Inicializa carregando a lista
+    // Inicializa carregando a lista em segundo plano
     carregarExercicios();
 </script>
 </body>

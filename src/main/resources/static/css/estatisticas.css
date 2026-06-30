@@ -1,0 +1,275 @@
+/* ==========================================================================
+   CONFIGURAÇÕES GERAIS (ESTILO CLEAN DASHBOARD - estatisticas.css)
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background-color: #f8fafc;
+    color: #0f172a;
+    padding: 30px 15px;
+}
+
+.container {
+    max-width: 1050px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.navigation-wrapper {
+    margin-bottom: 20px;
+}
+
+.btn-dashboard {
+    display: inline-block;
+    padding: 10px 18px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-dashboard:hover {
+    background-color: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.estatisticas-header {
+    margin-bottom: 35px;
+}
+
+.estatisticas-header h1 {
+    font-size: 2.2rem;
+    color: #1e293b;
+    margin-bottom: 6px;
+}
+
+.estatisticas-header p {
+    color: #64748b;
+    font-size: 1.05rem;
+}
+
+/* NAV POR ABAS */
+.abas-navegacao {
+    display: flex;
+    gap: 10px;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 2px;
+    margin-bottom: 30px;
+    overflow-x: auto;
+}
+
+.aba-btn {
+    padding: 12px 24px;
+    background: none;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.aba-btn:hover {
+    color: #1e293b;
+}
+
+.aba-btn.ativa {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+}
+
+/* PAINEL DE CONTEÚDO */
+.painel-estatistica {
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.painel-estatistica h2 {
+    font-size: 1.4rem;
+    color: #1e293b;
+    margin-bottom: 20px;
+}
+
+/* ABA 1: TABELA DE HISTÓRICO DE TREINO */
+.tabela-wrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.tabela-estatistica {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.tabela-estatistica th, .tabela-estatistica td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.tabela-estatistica th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 700;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tabela-estatistica tbody tr:hover {
+    background-color: #fafafa;
+}
+
+.txt-energia {
+    color: #ea580c;
+    font-weight: 600;
+}
+
+/* ABA 2: GRÁFICOS */
+.grade-graficos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 25px;
+}
+
+@media(max-width: 500px) {
+    .grade-graficos { grid-template-columns: 1fr; }
+}
+
+.card-grafico {
+    border: 1px solid #f1f5f9;
+    padding: 20px;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.card-grafico h3 {
+    font-size: 1rem;
+    color: #475569;
+    margin-bottom: 15px;
+}
+
+/* ABA 3: LAYOUT DIÁRIO (TIMELINE + RAIO X) */
+.sub-instrucao {
+    color: #64748b;
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+}
+
+.layout-diario {
+    display: flex;
+    gap: 25px;
+    align-items: flex-start;
+}
+
+@media(max-width: 768px) {
+    .layout-diario { flex-direction: column; }
+}
+
+.lista-datas-botoes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 250px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+@media(max-width: 768px) {
+    .lista-datas-botoes { width: 100%; max-height: 150px; flex-direction: row; overflow-x: auto; }
+}
+
+.btn-data-linha {
+    width: 100%;
+    text-align: left;
+    padding: 12px 15px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-data-linha:hover {
+    background: #f1f5f9;
+}
+
+.btn-data-linha.data-ativa {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #2563eb;
+}
+
+/* PAINEL DE DETALHES */
+.painel-detalhe-vazio {
+    flex: 1;
+    padding: 40px;
+    text-align: center;
+    border: 2px dashed #e2e8f0;
+    border-radius: 8px;
+    color: #94a3b8;
+}
+
+.painel-detalhe-ativo {
+    flex: 1;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.detalhe-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+}
+
+.detalhe-header h3 { font-size: 1.15rem; color: #1e293b; }
+.detalhe-header span { font-size: 0.8rem; background: #cbd5e1; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+
+.grade-detalhes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.item-detalhe {
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+    color: #475569;
+}
+
+.item-detalhe strong {
+    color: #0f172a;
+}
+
+/* Destaque para Peso, Altura, Gordura e MM */
+.item-detalhe.destaque-medida {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+.item-detalhe.destaque-medida strong {
+    color: #166534;
+}

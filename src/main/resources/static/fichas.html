@@ -5,8 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciar Fichas de Treino</title>
     <link rel="stylesheet" href="css/fichas.css">
+    <style>
+        /* Estilização para o Sistema de Toasts Profissional */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background-color: #334155;
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-family: sans-serif;
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 250px;
+            animation: slideIn 0.3s ease, fadeOut 0.5s ease 2.7s forwards;
+        }
+        .toast.success { background-color: #10b981; }
+        .toast.error { background-color: #ef4444; }
+        .toast.info { background-color: #3b82f6; }
+
+        @keyframes slideIn {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(20px); }
+        }
+    </style>
 </head>
 <body>
+
+<div id="toast-container" class="toast-container"></div>
 
 <div class="container">
     <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
@@ -86,6 +127,26 @@
     const API_FICHAS = '/api/fichas';
     const API_EXERCICIOS = '/api/exercicios';
 
+    // Função auxiliar para exibir notificações customizadas na tela
+    function mostrarToast(mensagem, tipo = 'success') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${tipo}`;
+
+        let icone = '🔔';
+        if (tipo === 'success') icone = '✅';
+        if (tipo === 'error') icone = '❌';
+        if (tipo === 'info') icone = 'ℹ️';
+
+        toast.innerHTML = `<span>${icone}</span> <span>${mensagem}</span>`;
+        container.appendChild(toast);
+
+        // Remove do DOM após a animação acabar (3 segundos totais)
+        setTimeout(() => {
+            toast.remove();
+        }, 3200);
+    }
+
     function mostrarSecao(secaoId) {
         document.getElementById('secao-listar').style.display = 'none';
         document.getElementById('secao-criar').style.display = 'none';
@@ -96,64 +157,6 @@
 
         if (secaoId === 'secao-listar') carregarFichas();
         if (secaoId === 'secao-vincular') carregarDadosVinculo();
-    }
-
-    // GET - Carrega a listagem principal de fichas e seus exercícios internos
-    function carregarFichas() {
-        fetch(API_FICHAS)
-            .then(res => res.json())
-            .then(fichas => {
-                const container = document.getElementById('conteudo-fichas');
-                if (fichas.length === 0) {
-                    container.innerHTML = '<p style="color: #64748b;">Nenhuma ficha cadastrada ainda.</p>';
-                    return;
-                }
-
-                let html = '';
-                fichas.forEach(ficha => {
-                    html += `
-                        <div class="card-ficha">
-                            <div class="card-ficha-header">
-                                <span><strong>ID: ${ficha.id}</strong> - ${ficha.nome}</span>
-                            </div>
-                            <div class="card-ficha-body">
-                                <h4>Exercícios na Ficha:</h4>
-                    `;
-
-                    if (!ficha.exercicios || ficha.exercicios.length === 0) {
-                        html += `<p style="color: #94a3b8; font-style: italic;">Nenhum exercício associado.</p>`;
-                    } else {
-                        html += `<ul>`;
-                        ficha.exercicios.forEach(ex => {
-                            let detalhes = ex.duracao !== undefined
-                                ? `⏱️ Duração: ${ex.duracao} min | 🔥 ${ex.caloriasPorMinuto} kcal`
-                                : `🏋️ Carga: ${ex.carga}kg | 🔄 ${ex.series}x${ex.repeticoes} (Pausa: ${ex.tempoDescanso}s)`;
-                            html += `<li><strong>${ex.nome}</strong> <small style="color:#64748b;">(${detalhes})</small></li>`;
-                        });
-                        html += `</ul>`;
-                    }
-
-                    html += `</div></div>`;
-                });
-                container.innerHTML = html;
-            });
-    }
-
-    // POST - Criar ficha passando 'nome' via Query Parameter para o @RequestParam
-    function executarCriarFicha() {
-        const nome = document.getElementById('nome-ficha').value;
-        if (!nome) { alert('Insira o nome da ficha!'); return; }
-
-        fetch(`${API_FICHAS}?nome=${encodeURIComponent(nome)}`, { method: 'POST' })
-            .then(res => {
-                if (res.ok) {
-                    alert('Ficha criada com sucesso!');
-                    document.getElementById('form-ficha').reset();
-                    mostrarSecao('secao-listar');
-                } else {
-                    alert('Erro ao criar ficha.');
-                }
-            });
     }
 
     // GET - Carrega a listagem principal de fichas e seus exercícios internos + Totais Calculados
@@ -169,8 +172,6 @@
 
                 let html = '';
                 fichas.forEach(ficha => {
-                    // Captura os valores gerados automaticamente pelos getters do Java (Ficha.java)
-                    // Usa .toFixed(0) ou .toFixed(1) para não encher a tela de casas decimais feias
                     let tempoTreino = ficha.tempoTotal !== undefined ? ficha.tempoTotal.toFixed(0) : 0;
                     let caloriasTreino = ficha.caloriasTotais !== undefined ? ficha.caloriasTotais.toFixed(0) : 0;
 
@@ -192,7 +193,7 @@
                         html += `<ul>`;
                         ficha.exercicios.forEach(ex => {
                             let detalhes = ex.duracao !== undefined
-                                ? `⏱️ Duração: ${ex.duracao} min | 🔥 ${ex.caloriasPorMinuto} kcal/min`
+                                ? `⏱️ Duração: ${ex.duracao} min | 🔥 ${ex.caloriasPorMinuto} kcal`
                                 : `🏋️ Carga: ${ex.carga}kg | 🔄 ${ex.series}x${ex.repeticoes} (Pausa: ${ex.tempoDescanso}s)`;
                             html += `<li style="margin-bottom: 6px;"><strong>${ex.nome}</strong> <small style="color:#64748b;">(${detalhes})</small></li>`;
                         });
@@ -205,22 +206,103 @@
             });
     }
 
+    // GET - Preenche os painéis laterais de consulta rápida de IDs
+    function carregarDadosVinculo() {
+        fetch(API_FICHAS)
+            .then(res => res.json())
+            .then(fichas => {
+                const container = document.getElementById('mini-lista-fichas');
+                if (fichas.length === 0) {
+                    container.innerHTML = '<p style="color: #94a3b8; padding: 10px;">Nenhuma ficha cadastrada.</p>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #cbd5e1; color: #475569;">
+                                <th style="padding: 8px;">ID</th>
+                                <th style="padding: 8px;">Nome da Ficha</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${fichas.map(f => `
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 8px; font-weight: bold; color: #3b82f6;">#${f.id}</td>
+                                    <td style="padding: 8px; color: #334155;">${f.nome}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            });
+
+        fetch(API_EXERCICIOS)
+            .then(res => res.json())
+            .then(exercicios => {
+                const container = document.getElementById('mini-lista-exercicios');
+                if (exercicios.length === 0) {
+                    container.innerHTML = '<p style="color: #94a3b8; padding: 10px;">Nenhum exercício cadastrado.</p>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #cbd5e1; color: #475569;">
+                                <th style="padding: 8px;">ID</th>
+                                <th style="padding: 8px;">Nome</th>
+                                <th style="padding: 8px;">Tipo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${exercicios.map(e => `
+                                <tr style="border-bottom: 1px solid #e2e8f0;">
+                                    <td style="padding: 8px; font-weight: bold; color: #10b981;">#${e.id}</td>
+                                    <td style="padding: 8px; color: #334155;">${e.nome}</td>
+                                    <td style="padding: 8px; color: #64748b; font-size: 0.8rem;">
+                                        ${e.duracao !== undefined ? '🏃 Cardio' : '💪 Força'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            });
+    }
+
+    // POST - Criar ficha passando 'nome' via Query Parameter
+    function executarCriarFicha() {
+        const nome = document.getElementById('nome-ficha').value;
+        if (!nome) { mostrarToast('Insira o nome da ficha!', 'error'); return; }
+
+        fetch(`${API_FICHAS}?nome=${encodeURIComponent(nome)}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    mostrarToast('Ficha criada com sucesso!', 'success');
+                    document.getElementById('form-ficha').reset();
+                    // Permanecer na aba atual, atualizando apenas os dados em segundo plano
+                } else {
+                    mostrarToast('Erro ao criar ficha.', 'error');
+                }
+            });
+    }
+
     // POST - Vincula exercício à ficha (/fichas/{fichaId}/add/{exercicioId})
     function executarVinculo() {
         const fichaId = document.getElementById('vinculo-ficha-id').value;
         const exercicioId = document.getElementById('vinculo-exercicio-id').value;
 
-        if (!fichaId || !exercicioId) { alert('Selecione ou informe ambos os IDs!'); return; }
+        if (!fichaId || !exercicioId) { mostrarToast('Selecione ou informe ambos os IDs!', 'error'); return; }
 
         fetch(`/api/fichas/${fichaId}/add/${exercicioId}`, { method: 'POST' })
             .then(res => {
                 if (res.ok) {
-                    alert('Exercício adicionado à ficha com sucesso!');
+                    mostrarToast('Exercício adicionado à ficha com sucesso!', 'success');
                     document.getElementById('vinculo-ficha-id').value = '';
                     document.getElementById('vinculo-exercicio-id').value = '';
-                    mostrarSecao('secao-listar');
+                    // Mantém na mesma aba de vínculo e atualiza as mini-tabelas imediatamente
+                    carregarDadosVinculo();
                 } else {
-                    alert('Erro ao vincular. Verifique se os IDs existem.');
+                    mostrarToast('Erro ao vincular. Verifique se os IDs existem.', 'error');
                 }
             });
     }
@@ -228,16 +310,16 @@
     // DELETE - Deleta a ficha
     function executarExclusao() {
         const id = document.getElementById('delete-id').value;
-        if (!id) { alert('Informe o ID!'); return; }
+        if (!id) { mostrarToast('Informe o ID!', 'error'); return; }
 
         fetch(`${API_FICHAS}/${id}`, { method: 'DELETE' })
             .then(res => {
                 if (res.ok) {
-                    alert('Ficha removida com sucesso!');
+                    mostrarToast('Ficha removida com sucesso!', 'success');
                     document.getElementById('delete-id').value = '';
-                    mostrarSecao('secao-listar');
+                    // Mantém na mesma aba de remoção
                 } else {
-                    alert('Erro ao deletar ficha.');
+                    mostrarToast('Erro ao deletar ficha.', 'error');
                 }
             });
     }
