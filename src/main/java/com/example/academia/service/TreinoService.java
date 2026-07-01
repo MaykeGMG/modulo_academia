@@ -17,6 +17,9 @@ public class TreinoService {
     private final List<RegistroTreino> historico = new ArrayList<>();
     private final List<ProgressoCorporal> historicoProgresso = new ArrayList<>();
 
+    // Objeto único para o Perfil do usuário (Adicionado)
+    private Perfil perfilUsuario;
+
     private Long proximoExercicioId = 1L;
     private Long proximoFichaId = 1L;
     private Long proximoProgressoId = 1L;
@@ -25,13 +28,36 @@ public class TreinoService {
     private final String ARQUIVO_FICHAS = "fichas.txt";
     private final String ARQUIVO_HISTORICO = "historico.txt";
     private final String ARQUIVO_PROGRESSO = "progresso.txt";
+    private final String ARQUIVO_PERFIL = "perfil.txt"; // Constante do novo arquivo (Adicionado)
 
     @PostConstruct
-    public void inicializar() { //carregar listas a partir dos arquivos quando inicializar
+    public void inicializar() { // carregar listas a partir dos arquivos quando inicializar
+        carregarPerfilDeArquivo(); // Carrega o perfil primeiro (Adicionado)
         carregarHistoricoDeArquivo();
         carregarProgressoDeArquivo();
         carregarDadosDoDisco();
     }
+
+    // =================================================================================
+    // MÉTODOS DE GERENCIAMENTO DO PERFIL (Adicionado)
+    // =================================================================================
+
+    public Perfil obterPerfil() {
+        if (this.perfilUsuario == null) {
+            this.perfilUsuario = new Perfil(26, 175.0, "M"); // Fallback padrão de segurança
+        }
+        return perfilUsuario;
+    }
+
+    public Perfil atualizarPerfil(Perfil novoPerfil) {
+        this.perfilUsuario = novoPerfil;
+        salvarPerfilEmArquivo();
+        return perfilUsuario;
+    }
+
+    // =================================================================================
+    // MÉTODOS DE EXERCÍCIOS E FICHAS
+    // =================================================================================
 
     public Exercicio salvarExercicio(Exercicio exercicio) {
         exercicio.setId(proximoExercicioId++);
@@ -113,6 +139,16 @@ public class TreinoService {
     // MÉTODOS DE SALVAMENTO DE ARQUIVO
     // =================================================================================
 
+    private void salvarPerfilEmArquivo() { // Novo método de persistência (Adicionado)
+        try (PrintWriter writer = new PrintWriter(new FileWriter(ARQUIVO_PERFIL))) {
+            if (perfilUsuario != null) {
+                writer.println(perfilUsuario.getIdade() + ";" + perfilUsuario.getAltura() + ";" + perfilUsuario.getGenero());
+            }
+        } catch (IOException e) {
+            System.err.println("Erro ao salvar perfil: " + e.getMessage());
+        }
+    }
+
     private void salvarHistoricoEmArquivo() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(ARQUIVO_HISTORICO))) {
             for (RegistroTreino r : historico) {
@@ -126,7 +162,6 @@ public class TreinoService {
     private void salvarProgressoEmArquivo() {
         try (PrintWriter writer = new PrintWriter(new FileWriter(ARQUIVO_PROGRESSO))) {
             for (ProgressoCorporal p : historicoProgresso) {
-                // Salva: id;dataRegistro;idade;altura;peso;genero;pescoco;cintura;quadril;biceps;coxa;panturrilha;ombro;busto
                 writer.println(p.getId() + ";" + p.getDataRegistro() + ";" + p.getIdade() + ";" +
                         p.getAltura() + ";" + p.getPeso() + ";" + p.getGenero() + ";" +
                         p.getPescoco() + ";" + p.getCintura() + ";" + p.getQuadril() + ";" +
@@ -171,6 +206,33 @@ public class TreinoService {
     // MÉTODOS DE CARREGAMENTO DE ARQUIVO
     // =================================================================================
 
+    private void carregarPerfilDeArquivo() { // Novo método de leitura (Adicionado)
+        File arquivo = new File(ARQUIVO_PERFIL);
+        if (!arquivo.exists()) {
+            // Se o arquivo não existir, inicia com dados padrão e gera o arquivo inicial
+            this.perfilUsuario = new Perfil(26, 175.0, "M");
+            salvarPerfilEmArquivo();
+            return;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(arquivo))) {
+            String linha = reader.readLine();
+            if (linha != null && !linha.trim().isEmpty()) {
+                String[] tokens = linha.split(";");
+                if (tokens.length >= 3) {
+                    this.perfilUsuario = new Perfil(
+                            Integer.parseInt(tokens[0]),
+                            Double.parseDouble(tokens[1]),
+                            tokens[2]
+                    );
+                }
+            }
+        } catch (IOException | NumberFormatException e) {
+            System.err.println("Erro ao ler perfil, aplicando padrão: " + e.getMessage());
+            this.perfilUsuario = new Perfil(26, 175.0, "M");
+        }
+    }
+
     private void carregarHistoricoDeArquivo() {
         File arquivo = new File(ARQUIVO_HISTORICO);
         if (!arquivo.exists()) return;
@@ -208,7 +270,7 @@ public class TreinoService {
                             Double.parseDouble(tokens[9]), Double.parseDouble(tokens[10]),
                             Double.parseDouble(tokens[11]), Double.parseDouble(tokens[12]),
                             Double.parseDouble(tokens[13]));
-                    // Sobrescreve a data de registro para manter a do arquivo original, pois o construtor coloca LocalDate.now()
+
                     p.setDataRegistro(data);
 
                     historicoProgresso.add(p);

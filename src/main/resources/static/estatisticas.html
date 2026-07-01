@@ -56,7 +56,6 @@
 </head>
 <body>
 
-<!-- Container onde as notificações vão aparecer -->
 <div id="toast-container" class="toast-container"></div>
 
 <div class="container">
@@ -74,6 +73,7 @@
         <button class="aba-btn" onclick="mudarAba('aba-graficos')">📈 Gráficos de Evolução</button>
         <button class="aba-btn" onclick="mudarAba('aba-diario')">📅 Diário de Medidas</button>
         <button class="aba-btn" onclick="mudarAba('aba-cadastrar-medidas')" style="color: #10b981;">➕ Registrar Medidas</button>
+        <button class="aba-btn" onclick="mudarAba('aba-perfil')" style="color: #3b82f6;">👤 Meu Perfil</button>
     </nav>
 
     <section id="aba-treinos" class="painel-estatistica">
@@ -121,28 +121,13 @@
 
     <section id="aba-cadastrar-medidas" class="painel-estatistica" style="display: none;">
         <h2>Registrar Nova Avaliação Física</h2>
-        <p class="sub-instrucao">Insira suas medidas atuais. O sistema calculará seu % de gordura e composição muscular automaticamente.</p>
+        <p class="sub-instrucao">Insira o seu peso e perímetros atuais. O sistema usará os dados do seu perfil cadastrado para calcular a composição corporal.</p>
 
         <form id="form-progresso">
             <div class="form-grade">
                 <div class="campo-grupo">
-                    <label for="m-idade">Idade (anos):</label>
-                    <input type="number" id="m-idade" required placeholder="Ex: 26">
-                </div>
-                <div class="campo-grupo">
-                    <label for="m-altura">Altura (cm):</label>
-                    <input type="number" id="m-altura" required placeholder="Ex: 175">
-                </div>
-                <div class="campo-grupo">
                     <label for="m-peso">Peso Atual (kg):</label>
                     <input type="number" step="0.1" id="m-peso" required placeholder="Ex: 78.5">
-                </div>
-                <div class="campo-grupo">
-                    <label for="m-genero">Gênero Biológico:</label>
-                    <select id="m-genero" required>
-                        <option value="M">Masculino</option>
-                        <option value="F">Feminino</option>
-                    </select>
                 </div>
             </div>
 
@@ -186,10 +171,39 @@
             <button type="button" class="btn-salvar" onclick="executarSalvarProgresso()" style="margin-top: 15px;">Salvar Evolução Corporal</button>
         </form>
     </section>
+
+    <section id="aba-perfil" class="painel-estatistica" style="display: none;">
+        <h2>Atualizar Configurações de Perfil</h2>
+        <p class="sub-instrucao">Mantenha seus dados base atualizados para que os cálculos matemáticos de percentual de gordura permaneçam precisos.</p>
+
+        <form id="form-perfil">
+            <div class="form-grade">
+                <div class="campo-grupo">
+                    <label for="p-idade">Idade (anos):</label>
+                    <input type="number" id="p-idade" required placeholder="Ex: 26">
+                </div>
+                <div class="campo-grupo">
+                    <label for="p-altura">Altura (cm):</label>
+                    <input type="number" id="p-altura" required placeholder="Ex: 175">
+                </div>
+                <div class="campo-grupo">
+                    <label for="p-genero">Gênero Biológico:</label>
+                    <select id="p-genero" required>
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" class="btn-salvar" onclick="executarSalvarPerfil()" style="margin-top: 15px; background-color: #3b82f6;">Atualizar Perfil</button>
+        </form>
+    </section>
 </div>
 
 <script>
-    // Função auxiliar para exibir notificações customizadas na tela
+    document.addEventListener("DOMContentLoaded", function() {
+        carregarPerfilNoFormulario();
+    });
+
     function mostrarToast(mensagem, tipo = 'success') {
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
@@ -218,6 +232,43 @@
         if (idAba === 'aba-treinos') carregarHistoricoTreinos();
         if (idAba === 'aba-graficos') inicializarGraficos();
         if (idAba === 'aba-diario') carregarDiarioMedidas();
+        if (idAba === 'aba-perfil') carregarPerfilNoFormulario();
+    }
+
+    // GET - Carrega os dados fixos do perfil do usuário
+    function carregarPerfilNoFormulario() {
+        fetch('/api/perfil')
+            .then(res => res.json())
+            .then(perfil => {
+                document.getElementById('p-idade').value = perfil.idade;
+                document.getElementById('p-altura').value = perfil.altura;
+                document.getElementById('p-genero').value = perfil.genero;
+            })
+            .catch(err => console.error("Erro ao buscar dados do perfil:", err));
+    }
+
+    // POST - Atualiza os dados de Perfil
+    function executarSalvarPerfil() {
+        const idade = document.getElementById('p-idade').value;
+        const altura = document.getElementById('p-altura').value;
+        const genero = document.getElementById('p-genero').value;
+
+        if (!idade || !altura || !genero) {
+            mostrarToast('Preencha todos os campos do perfil.', 'error');
+            return;
+        }
+
+        const params = new URLSearchParams({ idade, altura, genero });
+
+        fetch(`/api/perfil?${params.toString()}`, { method: 'POST' })
+            .then(res => {
+                if (res.ok) {
+                    mostrarToast('Perfil atualizado com sucesso!', 'success');
+                    inicializarGraficos(); // Atualiza os gráficos caso altura/gênero alterem dados retrospectivos
+                } else {
+                    mostrarToast('Erro ao atualizar o perfil.', 'error');
+                }
+            });
     }
 
     function carregarHistoricoTreinos() {
@@ -344,12 +395,9 @@
         `;
     }
 
-    // POST - Envia as novas medidas capturadas para a rota /api/progresso via Query Params
+    // POST - Envia apenas dados dinâmicos de peso e fita métrica
     function executarSalvarProgresso() {
-        const idade = document.getElementById('m-idade').value;
-        const altura = document.getElementById('m-altura').value;
         const peso = document.getElementById('m-peso').value;
-        const genero = document.getElementById('m-genero').value;
         const pescoco = document.getElementById('m-pescoco').value;
         const cintura = document.getElementById('m-cintura').value;
         const quadril = document.getElementById('m-quadril').value || 0;
@@ -359,13 +407,13 @@
         const ombro = document.getElementById('m-ombro').value;
         const busto = document.getElementById('m-busto').value;
 
-        if (!idade || !altura || !peso || !pescoco || !cintura) {
+        if (!peso || !pescoco || !cintura) {
             mostrarToast('Por favor, preencha todos os campos obrigatórios!', 'error');
             return;
         }
 
         const params = new URLSearchParams({
-            idade, altura, peso, genero, pescoco, cintura, quadril, biceps, coxa, panturrilha, ombro, busto
+            peso, pescoco, cintura, quadril, biceps, coxa, panturrilha, ombro, busto
         });
 
         fetch(`/api/progresso?${params.toString()}`, { method: 'POST' })
@@ -374,7 +422,6 @@
                     mostrarToast('Avaliação física registrada com sucesso!', 'success');
                     document.getElementById('form-progresso').reset();
 
-                    // Atualiza os dados locais silenciosamente sem tirar o usuário da aba atual
                     inicializarGraficos();
                     if (document.getElementById('aba-diario').style.display !== 'none') {
                         carregarDiarioMedidas();
