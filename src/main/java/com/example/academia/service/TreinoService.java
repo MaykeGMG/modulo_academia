@@ -38,9 +38,7 @@ public class TreinoService {
         carregarDadosDoDisco();
     }
 
-    // =================================================================================
-    // MÉTODOS DE GERENCIAMENTO DO PERFIL (Adicionado)
-    // =================================================================================
+    // MÉTODOS DE GERENCIAMENTO DO PERFIL
 
     public Perfil obterPerfil() {
         if (this.perfilUsuario == null) {
@@ -55,9 +53,7 @@ public class TreinoService {
         return perfilUsuario;
     }
 
-    // =================================================================================
     // MÉTODOS DE EXERCÍCIOS E FICHAS
-    // =================================================================================
 
     public Exercicio salvarExercicio(Exercicio exercicio) {
         exercicio.setId(proximoExercicioId++);
@@ -135,9 +131,7 @@ public class TreinoService {
         return removido;
     }
 
-    // =================================================================================
     // MÉTODOS DE SALVAMENTO DE ARQUIVO
-    // =================================================================================
 
     private void salvarPerfilEmArquivo() { // Novo método de persistência (Adicionado)
         try (PrintWriter writer = new PrintWriter(new FileWriter(ARQUIVO_PERFIL))) {
@@ -202,11 +196,9 @@ public class TreinoService {
         }
     }
 
-    // =================================================================================
     // MÉTODOS DE CARREGAMENTO DE ARQUIVO
-    // =================================================================================
 
-    private void carregarPerfilDeArquivo() { // Novo método de leitura (Adicionado)
+    private void carregarPerfilDeArquivo() {
         File arquivo = new File(ARQUIVO_PERFIL);
         if (!arquivo.exists()) {
             // Se o arquivo não existir, inicia com dados padrão e gera o arquivo inicial
